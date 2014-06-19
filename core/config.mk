@@ -150,6 +150,12 @@ endif
 # are specific to the user's build configuration.
 include $(BUILD_SYSTEM)/envsetup.mk
 
+
+## Rebuild the pathmap if there's a recovery variant. Its path probably changed
+ifneq ($(RECOVERY_VARIANT),)
+include $(BUILD_SYSTEM)/pathmap.mk
+endif
+
 -include vendor/extra/BoardConfigExtra.mk
 # The build system exposes several variables for where to find the kernel
 # headers:
