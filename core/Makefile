@@ -1619,9 +1619,7 @@ bootzip: bootimage
 	   $(TARGET_DEVICE)
 
 fusionsp: otapackage
-ifneq ($(TARGET_CUSTOM_RELEASETOOL),)
-	$(error TARGET_CUSTOM_RELEASETOOL is deprecated)
-endif
+
 	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(FUSIONSP_TARGET_PACKAGE)
 	$(hide) $(MD5SUM) $(FUSIONSP_TARGET_PACKAGE) > $(FUSIONSP_TARGET_PACKAGE).md5sum
 	@echo -e ${CL_BLU}""${CL_BLU}
