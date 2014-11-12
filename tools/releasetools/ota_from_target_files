@@ -666,6 +666,12 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   script.UnmountAll()
 
+  script.Print("**********************************************")
+  script.Print("               <%%% Fusion %%%>               ")
+  script.Print("        <%%% Android Lollipop 5.0 %%%>        ")
+  script.Print("           <%%% Made by Dragon %%%>           ")
+  script.Print("**********************************************")
+
   if OPTIONS.wipe_user_data:
     script.ShowProgress(0.1, 10)
     script.FormatPartition("/data")
