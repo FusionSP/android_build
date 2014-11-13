@@ -1617,7 +1617,7 @@ endif
         @echo -e ${CL_BLU}"           <%%% Made by Dragon %%%>           "${CL_BLU}
         @echo -e ${CL_BLU}"**********************************************"${CL_BLU}
         @echo -e ${CL_BLU}""${CL_BLU}
-	@echo -e ${CL_CYN}"Package Complete: $(FUSION_TARGET_PACKAGE)"${CL_RST}
+	@echo -e ${CL_CYN}"Package Complete: $(FUSION_TARGET_PACKAGE)"${CL_CYAN}${CL_RST}
 
 endif    # recovery_fstab is defined
 endif    # TARGET_NO_KERNEL != true
