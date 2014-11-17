@@ -40,11 +40,11 @@ default_rem = "fs-dev"
 default_rev = "lp5.0"
 # set this to the remote that you use for projects from your team repos
 # example fetch="https://github.com/omnirom"
-default_team_rem = "gh"
+default_team_rem = "github"
 # this shouldn't change unless google makes changes
 local_manifest_dir = ".repo/local_manifests"
 # change this to your name on github (or equivalent hosting)
-android_team = "Fusion-Rom"
+android_team = "FusionSP"
 
 
 def check_repo_exists(git_data):
