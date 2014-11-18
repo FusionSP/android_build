@@ -226,7 +226,7 @@ ifneq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_OEM_PROPERTIES),)
 endif
 	$(hide) TARGET_BUILD_TYPE="$(TARGET_BUILD_VARIANT)" \
 			TARGET_DEVICE="$(TARGET_VENDOR_DEVICE_NAME)" \
-			FUSION_DEVICE="$(TARGET_DEVICE)" \
+			FUSIONSP_DEVICE="$(TARGET_DEVICE)" \
 			PRODUCT_NAME="$(TARGET_VENDOR_PRODUCT_NAME)" \
 			PRODUCT_BRAND="$(PRODUCT_BRAND)" \
 			PRODUCT_DEFAULT_LANGUAGE="$(call default-locale-language,$(PRODUCT_LOCALES))" \
@@ -1577,7 +1577,7 @@ endif
 ifeq ($(WITH_GMS),true)
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
 else
-ifneq ($(FUSION_BUILD),)
+ifneq ($(FUSIONSP_BUILD),)
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
 else
     $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
@@ -1607,9 +1607,9 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(DISTTOOLS)
 	   $(if $(OEM_OTA_CONFIG), -o $(OEM_OTA_CONFIG)) \
 	   $(BUILT_TARGET_FILES_PACKAGE) $@
 
-FUSION_TARGET_PACKAGE := $(PRODUCT_OUT)/$(FUSION_VERSION)-$(TARGET_PRODUCT).zip
+FUSIONSP_TARGET_PACKAGE := $(PRODUCT_OUT)/$(FUSIONSP_VERSION)-$(TARGET_PRODUCT).zip
 
-.PHONY: otapackage fusion bootzip
+.PHONY: otapackage fusionsp bootzip
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
 
 bootzip: bootimage
@@ -1618,20 +1618,20 @@ bootzip: bootimage
 	   $(OUT) \
 	   $(TARGET_DEVICE)
 
-fusion: otapackage
+fusionsp: otapackage
 ifneq ($(TARGET_CUSTOM_RELEASETOOL),)
 	$(error TARGET_CUSTOM_RELEASETOOL is deprecated)
 endif
-	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(FUSION_TARGET_PACKAGE)
-	$(hide) $(MD5SUM) $(FUSION_TARGET_PACKAGE) > $(FUSION_TARGET_PACKAGE).md5sum
+	$(hide) ln -f $(INTERNAL_OTA_PACKAGE_TARGET) $(FUSIONSP_TARGET_PACKAGE)
+	$(hide) $(MD5SUM) $(FUSIONSP_TARGET_PACKAGE) > $(FUSIONSP_TARGET_PACKAGE).md5sum
 	@echo -e ${CL_BLU}""${CL_BLU}
 	@echo -e ${CL_BLU}"**********************************************"${CL_BLU}
-	@echo -e ${CL_BLU}"              <%%% Fusion Rom%%%>             "${CL_BLU}
+	@echo -e ${CL_BLU}"           <%%% FusionSP Rom %%%>             "${CL_BLU}
 	@echo -e ${CL_BLU}"        <%%% Android Lollipop 5.0 %%%>        "${CL_BLU}
 	@echo -e ${CL_BLU}"           <%%% Made by Dragon %%%>           "${CL_BLU}
 	@echo -e ${CL_BLU}"**********************************************"${CL_BLU}
 	@echo -e ${CL_BLU}""${CL_BLU}
-	@echo -e ${CL_CYN}"Package Complete: $(FUSION_TARGET_PACKAGE)"${CL_CYAN}${CL_RST}
+	@echo -e ${CL_CYN}"Package Complete: $(FUSIONSP_TARGET_PACKAGE)"${CL_CYAN}${CL_RST}
 
 endif    # recovery_fstab is defined
 endif    # TARGET_NO_KERNEL != true

@@ -55,6 +55,6 @@ if [ -n "$BUILD_THUMBPRINT" ] ; then
 fi
 echo "ro.build.characteristics=$TARGET_AAPT_CHARACTERISTICS"
 
-echo "ro.fusion.device=$FUSION_DEVICE"
+echo "ro.fusion.device=$FUSIONSP_DEVICE"
 
 echo "# end build properties"
