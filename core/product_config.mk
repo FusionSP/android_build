@@ -180,8 +180,8 @@ include $(BUILD_SYSTEM)/product.mk
 include $(BUILD_SYSTEM)/device.mk
 
 # A Fusion build needs only the Fusion product makefiles.
-ifneq ($(FUSION_BUILD),)
-  all_product_configs := $(shell ls device/*/$(FUSION_BUILD)/fusion.mk)
+ifneq ($(FUSIONSP_BUILD),)
+  all_product_configs := $(shell ls device/*/$(FUSIONSP_BUILD)/fusionsp.mk)
 else
   ifneq ($(strip $(TARGET_BUILD_APPS)),)
   # An unbundled app build needs only the core product makefiles.
@@ -192,9 +192,9 @@ else
     # files in the tree.
     all_product_configs := $(get-all-product-makefiles)
   endif # TARGET_BUILD_APPS
-endif # FUSION_BUILD
+endif # FUSIONSP_BUILD
 
-ifeq ($(FUSION_BUILD),)
+ifeq ($(FUSIONSP_BUILD),)
 # Find the product config makefile for the current product.
 # all_product_configs consists items like:
 # <product_name>:<path_to_the_product_makefile>
