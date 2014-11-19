@@ -151,10 +151,9 @@ endif
 include $(BUILD_SYSTEM)/envsetup.mk
 
 
-## Rebuild the pathmap if there's a recovery variant. Its path probably changed
-ifneq ($(RECOVERY_VARIANT),)
-include $(BUILD_SYSTEM)/pathmap.mk
-endif
+# General entries for project pathmap. Any entries listed here should
+# be device and hardware intedpendent.
+$(call set_project_variant_path,recovery,RECOVERY_VARIANT,bootable/recovery)
 
 -include vendor/extra/BoardConfigExtra.mk
 # The build system exposes several variables for where to find the kernel
