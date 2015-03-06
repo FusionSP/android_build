@@ -24,7 +24,6 @@ PRODUCT_PACKAGES += \
     android.policy \
     android.test.runner \
     app_process \
-    applypatch \
     blkid \
     bmgr \
     bugreport \
@@ -110,6 +109,7 @@ PRODUCT_PACKAGES += \
     settings \
     svc \
     tc \
+    tm \
     vdc \
     vold \
     wm

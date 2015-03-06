@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2013 The CyanogenMod Project
+# Copyright (C) 2013-14 The CyanogenMod Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,12 +31,14 @@ import textwrap
 
 try:
   # For python3
+  import urllib.error
   import urllib.request
 except ImportError:
   # For python2
   import imp
   import urllib2
   urllib = imp.new_module('urllib')
+  urllib.error = urllib2
   urllib.request = urllib2
 
 # Parse the command line
@@ -55,7 +57,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
     The --abandon-first argument, when used in conjuction with the
     --start-branch option, will cause repopick to abandon the specified
     branch in all repos first before performing any cherry picks.'''))
-parser.add_argument('change_number', nargs='*', help='change number to cherry pick')
+parser.add_argument('change_number', nargs='*', help='change number to cherry pick.  Use {change number}/{patchset number} to get a specific revision.')
 parser.add_argument('-i', '--ignore-missing', action='store_true', help='do not error out if a patch applies to a missing directory')
 parser.add_argument('-s', '--start-branch', nargs=1, help='start the specified branch before cherry picking')
 parser.add_argument('-a', '--abandon-first', action='store_true', help='before cherry picking, abandon the branch specified in --start-branch')
@@ -227,19 +229,39 @@ for change in args.change_number:
 args.change_number = changelist
 
 # Iterate through the requested change numbers
-for change in args.change_number:
+for changeps in args.change_number:
+
+    if '/' in changeps:
+        change = changeps.split('/')[0]
+        patchset = changeps.split('/')[1]
+    else:
+        change = changeps
+        patchset = ''
+
     if not args.quiet:
-        print('Applying change number %s ...' % change)
+        if len(patchset) == 0:
+            print('Applying change number %s ...' % change)
+        else:
+            print('Applying change number {change}/{patchset} ...'.format(change=change, patchset=patchset))
+
+    if len(patchset) == 0:
+        query_revision = 'CURRENT_REVISION'
+    else:
+        query_revision = 'ALL_REVISIONS'
 
     # Fetch information about the change from Gerrit's REST API
     #
     # gerrit returns two lines, a magic string and then valid JSON:
     #   )]}'
     #   [ ... valid JSON ... ]
-    url = 'http://review.cyanogenmod.org/changes/?q=%s&o=CURRENT_REVISION&o=CURRENT_COMMIT&pp=0' % change
+    url = 'http://review.cyanogenmod.org/changes/?q={change}&o={query_revision}&o=CURRENT_COMMIT&pp=0'.format(change=change, query_revision=query_revision)
     if args.verbose:
         print('Fetching from: %s\n' % url)
-    f = urllib.request.urlopen(url)
+    try:
+        f = urllib.request.urlopen(url)
+    except urllib.error.URLError:
+        sys.stderr.write('ERROR: Server reported an error, or cannot be reached\n')
+        sys.exit(1)
     d = f.read().decode("utf-8")
     if args.verbose:
         print('Result from request:\n' + d)
@@ -264,12 +286,34 @@ for change in args.change_number:
     # Extract information from the JSON response
     date_fluff       = '.000000000'
     project_name     = data['project']
+    project_branch   = data['branch']
     change_number    = data['_number']
     status           = data['status']
+    patchsetfound    = False
+
+    if len(patchset) > 0:
+        try:
+            for revision in data['revisions']:
+                if (int(data['revisions'][revision]['_number']) == int(patchset)) and not patchsetfound:
+                    target_revision = data['revisions'][revision]
+                    if args.verbose:
+                       print('Using found patch set {patchset} ...'.format(patchset=patchset))
+                    patchsetfound = True
+                    break
+            if not patchsetfound:
+                print('ERROR: The patch set could not be found, using CURRENT_REVISION instead.')
+        except:
+            print('ERROR: The patch set could not be found, using CURRENT_REVISION instead.')
+            patchsetfound = False
+
+    if not patchsetfound:
+        target_revision = data['revisions'][data['current_revision']]
+
     current_revision = data['revisions'][data['current_revision']]
-    patch_number     = current_revision['_number']
-    fetch_url        = current_revision['fetch']['anonymous http']['url']
-    fetch_ref        = current_revision['fetch']['anonymous http']['ref']
+
+    patch_number     = target_revision['_number']
+    fetch_url        = target_revision['fetch']['anonymous http']['url']
+    fetch_ref        = target_revision['fetch']['anonymous http']['ref']
     author_name      = current_revision['commit']['author']['name']
     author_email     = current_revision['commit']['author']['email']
     author_date      = current_revision['commit']['author']['date'].replace(date_fluff, '')
@@ -290,6 +334,27 @@ for change in args.change_number:
     #   - check that the project path exists
     if project_name in project_name_to_path:
         project_path = project_name_to_path[project_name];
+
+        if project_path.startswith('hardware/qcom/'):
+            split_path = project_path.split('/')
+            # split_path[2] might be display or it might be display-caf, trim the -caf
+            split_path[2] = split_path[2].split('-')[0]
+
+            # Need to treat hardware/qcom/{audio,display,media} specially
+            if split_path[2] == 'audio' or split_path[2] == 'display' or split_path[2] == 'media':
+                split_branch = project_branch.split('-')
+
+                # display is extra special
+                if split_path[2] == 'display' and len(split_path) == 3:
+                    project_path = '/'.join(split_path)
+                else:
+                    project_path = '/'.join(split_path[:-1])
+
+                if len(split_branch) == 4 and split_branch[0] == 'cm' and split_branch[2] == 'caf':
+                    project_path += '-caf/msm' + split_branch[3]
+                # audio and media are different from display
+                elif split_path[2] == 'audio' or split_path[2] == 'media':
+                    project_path += '/default'
     elif args.ignore_missing:
         print('WARNING: Skipping %d since there is no project directory for: %s\n' % (change_number, project_name))
         continue;

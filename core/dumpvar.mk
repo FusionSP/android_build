@@ -65,9 +65,7 @@ endif # CALLED_FROM_SETUP
 ifneq ($(PRINT_BUILD_CONFIG),)
 HOST_OS_EXTRA:=$(shell python -c "import platform; print(platform.platform())")
 $(info ============================================)
-$(info   PLATFORM_VERSION_CODENAME=$(PLATFORM_VERSION_CODENAME))
-$(info   PLATFORM_VERSION=$(PLATFORM_VERSION))
-$(info   CM_VERSION=$(CM_VERSION))
+$(info   FUSIONSP_VERSION=$(FUSIONSP_VERSION))
 $(info   TARGET_PRODUCT=$(TARGET_PRODUCT))
 $(info   TARGET_BUILD_VARIANT=$(TARGET_BUILD_VARIANT))
 $(info   TARGET_BUILD_TYPE=$(TARGET_BUILD_TYPE))
@@ -75,18 +73,52 @@ $(info   TARGET_BUILD_APPS=$(TARGET_BUILD_APPS))
 $(info   TARGET_ARCH=$(TARGET_ARCH))
 $(info   TARGET_ARCH_VARIANT=$(TARGET_ARCH_VARIANT))
 $(info   TARGET_CPU_VARIANT=$(TARGET_CPU_VARIANT))
-$(info   TARGET_2ND_ARCH=$(TARGET_2ND_ARCH))
-$(info   TARGET_2ND_ARCH_VARIANT=$(TARGET_2ND_ARCH_VARIANT))
-$(info   TARGET_2ND_CPU_VARIANT=$(TARGET_2ND_CPU_VARIANT))
+ifdef    TARGET_FUSION_ROM
+$(info   TARGET_FUSION_ROM=$(TARGET_FUSION_ROM))
+else
+$(info   TARGET_FUSION_ROM=4.8)
+endif
+$(info   TARGET_NDK_GCC_VERSION=$(TARGET_NDK_GCC_VERSION))
+ifdef    TARGET_FUSION_KERNEL
+$(info   TARGET_FUSION_KERNEL=$(TARGET_FUSION_KERNEL))
+else
+$(info   TARGET_FUSION_KERNEL=4.8)
+endif
+ifdef    FUSION_O3
+$(info   USE_O3_OPTIMIZATIONS=$(FUSION_O3))
+else
+$(info   USE_O3_OPTIMIZATIONS=false)
+endif
+ifdef    FUSION_OPT
+$(info   FUSION_OPT=$(FUSION_OPT))
+else
+$(info   FUSION_OPT=false)
+endif
+ifdef    FUSION_GRAPHITE
+$(info   FUSION_GRAPHITES=$(FUSION_GRAPHITE))
+else
+$(info   FUSION_GRAPHITE=false)
+endif
+ifdef    FUSION_STRICT
+$(info   FUSION_STRICT=$(FUSION_STRICT))
+else
+$(info   FUSION_STRICT=false)
+endif
+ifdef    FUSION_KRAIT
+$(info   FUSION_KRAIT=$(FUSION_KRAIT))
+else
+$(info   FUSION_KRAIT=false)
+endif
+ifdef    FUSION_PIPE
+$(info   FUSION_PIPE=$(FUSION_PIPE))
+else
+$(info   FUSION_PIPE=false)
+endif
 $(info   HOST_ARCH=$(HOST_ARCH))
 $(info   HOST_OS=$(HOST_OS))
 $(info   HOST_OS_EXTRA=$(HOST_OS_EXTRA))
 $(info   HOST_BUILD_TYPE=$(HOST_BUILD_TYPE))
 $(info   BUILD_ID=$(BUILD_ID))
 $(info   OUT_DIR=$(OUT_DIR))
-ifeq ($(CYNGN_TARGET),true)
-$(info   CYNGN_TARGET=$(CYNGN_TARGET))
-$(info   CYNGN_FEATURES=$(CYNGN_FEATURES))
-endif
 $(info ============================================)
 endif
