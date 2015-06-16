@@ -26,7 +26,7 @@ endif
 TARGET_NDK_GCC_VERSION := 4.8
 
 ifeq ($(strip $(TARGET_GCC_VERSION_EXP)),)
-TARGET_GCC_VERSION := 4.8
+TARGET_GCC_VERSION := 4.9
 else
 TARGET_GCC_VERSION := $(TARGET_GCC_VERSION_EXP)
 endif
@@ -92,6 +92,10 @@ TARGET_GLOBAL_CFLAGS += \
 			-no-canonical-prefixes \
 			-fno-canonical-system-headers
 
+# Work around gcc 4.9 devirtualization bug, https://b.corp.google.com/19872411.
+TARGET_GLOBAL_CFLAGS += \
+			-fno-devirtualize \
+
 # Help catch common 32/64-bit errors.
 TARGET_GLOBAL_CFLAGS += \
     -Werror=pointer-to-int-cast \
@@ -129,6 +133,10 @@ TARGET_GLOBAL_LDFLAGS += -Wl,-z,relro -Wl,-z,now
 TARGET_GLOBAL_LDFLAGS += -Wl,--warn-shared-textrel
 TARGET_GLOBAL_LDFLAGS += -Wl,--fatal-warnings
 TARGET_GLOBAL_LDFLAGS += -Wl,--gc-sections
+
+TARGET_GLOBAL_CFLAGS += $(BOARD_GLOBAL_CFLAGS)
+TARGET_GLOBAL_CPPFLAGS += $(BOARD_GLOBAL_CPPFLAGS)
+TARGET_GLOBAL_LDFLAGS += $(BOARD_GLOBAL_LDFLAGS)
 
 TARGET_C_INCLUDES := \
 	$(libc_root)/arch-x86_64/include \

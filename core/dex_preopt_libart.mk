@@ -16,7 +16,13 @@ DEX2OAT_DEPENDENCY += $(DEX2OAT)
 DEX2OATD_DEPENDENCY := $(DEX2OAT_DEPENDENCY)
 DEX2OATD_DEPENDENCY += $(DEX2OATD)
 
-PRELOADED_CLASSES := frameworks/base/preloaded-classes
+# Use the first preloaded-classes file in PRODUCT_COPY_FILES.
+PRELOADED_CLASSES := $(call word-colon,1,$(firstword \
+    $(filter %system/etc/preloaded-classes,$(PRODUCT_COPY_FILES))))
+
+# Use the first compiled-classes file in PRODUCT_COPY_FILES.
+COMPILED_CLASSES := $(call word-colon,1,$(firstword \
+    $(filter %system/etc/compiled-classes,$(PRODUCT_COPY_FILES))))
 
 # start of image reserved address space
 LIBART_IMG_HOST_BASE_ADDRESS   := 0x60000000
@@ -50,6 +56,13 @@ endif
 # $(2): the full path (including file name) of the corresponding .jar or .apk.
 define get-odex-file-path
 $(dir $(2))$(1)/$(basename $(notdir $(2))).odex
+endef
+
+# Returns the path to the .odex.gz file
+# $(1): the arch name.
+# $(2): the full path (including file name) of the corresponding .jar or .apk.
+define get-odex-comp-path
+$(dir $(2))$(1)/$(basename $(notdir $(2))).odex.gz
 endef
 
 # Returns the path to the image file (such as "/system/framework/<arch>/boot.art"
@@ -91,5 +104,6 @@ $(hide) $(DEX2OATD) \
 	--android-root=$(PRODUCT_OUT)/system \
 	--instruction-set=$($(PRIVATE_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_ARCH) \
 	--instruction-set-features=$($(PRIVATE_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_INSTRUCTION_SET_FEATURES) \
-	--include-patch-information --runtime-arg -Xnorelocate --no-include-debug-symbols
+	--include-patch-information --runtime-arg -Xnorelocate --no-include-debug-symbols \
+	$(PRIVATE_DEX_PREOPT_FLAGS)
 endef

@@ -43,6 +43,7 @@ PRODUCT_PACKAGES += \
     DefaultContainerService \
     SettingsProvider \
     Shell \
+    bcc \
     bu \
     com.android.location.provider \
     com.android.location.provider.xml \
@@ -53,6 +54,7 @@ PRODUCT_PACKAGES += \
     ip-up-vpn \
     ip6tables \
     iptables \
+    javax.btobex \
     keystore \
     keystore.default \
     libOpenMAXAL \

@@ -355,6 +355,10 @@ define find-other-java-files
 	$(call find-subdir-files,$(1) -name "*.java" -and -not -name ".*")
 endef
 
+define find-other-aidl-files
+	$(call find-subdir-files,$(1) -name "*.aidl" -and -not -name ".*")
+endef
+
 define find-other-html-files
 	$(call find-subdir-files,$(1) -name "*.html" -and -not -name ".*")
 endef
@@ -1190,8 +1194,16 @@ $(hide) ldir=$(PRIVATE_INTERMEDIATES_DIR)/WHOLE/$(basename $(notdir $(1)))_objs;
 
 endef
 
+# $(1): the full path of the source static library.
+define extract-and-include-whole-static-libs-first
+$(if $(strip $(1)),
+@echo "preparing StaticLib: $(PRIVATE_MODULE) [including $(strip $(1))]"
+$(hide) cp $(1) $@)
+endef
+
 define extract-and-include-target-whole-static-libs
-$(foreach lib,$(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES), \
+$(call extract-and-include-whole-static-libs-first, $(firstword $(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES)))
+$(foreach lib,$(wordlist 2,999,$(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES)), \
     $(call _extract-and-include-single-target-whole-static-lib, $(lib)))
 endef
 
@@ -1228,7 +1240,8 @@ $(hide) ldir=$(PRIVATE_INTERMEDIATES_DIR)/WHOLE/$(basename $(notdir $(1)))_objs;
 endef
 
 define extract-and-include-host-whole-static-libs
-$(foreach lib,$(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES), \
+$(call extract-and-include-whole-static-libs-first, $(firstword $(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES)))
+$(foreach lib,$(wordlist 2,999,$(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES)), \
     $(call _extract-and-include-single-host-whole-static-lib, $(lib)))
 endef
 
@@ -1587,7 +1600,13 @@ $(hide) if [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq ] ; the
     -extdirs "" -d $(PRIVATE_CLASS_INTERMEDIATES_DIR) \
     $(PRIVATE_JAVACFLAGS) \
     \@$(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq \
-    || ( rm -rf $(PRIVATE_CLASS_INTERMEDIATES_DIR) ; exit 41 ) \
+    2>$(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr \
+    && ( [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ] && \
+    echo -e ${CL_YLW}"`cat $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr`"${CL_RST} 1>&2; \
+    rm -f $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ) \
+    || ( [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ] && \
+    echo -e ${CL_RED}"`cat $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr`"${CL_RST} 1>&2; \
+    rm -rf $(PRIVATE_CLASS_INTERMEDIATES_DIR); exit 41 ) \
 fi
 $(if $(PRIVATE_JAVA_LAYERS_FILE), $(hide) build/tools/java-layers.py \
     $(PRIVATE_JAVA_LAYERS_FILE) \@$(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq,)
@@ -1648,7 +1667,13 @@ $(hide) if [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq ] ; the
     -extdirs "" -d $(PRIVATE_CLASS_INTERMEDIATES_DIR) \
     $(PRIVATE_JAVACFLAGS) \
     \@$(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq \
-    || ( exit 41 ) \
+    2>$(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr \
+    && ( [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ] && \
+    echo -e ${CL_YLW}"`cat $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr`"${CL_RST} 1>&2; \
+    rm -f $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ) \
+    || ( [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr ] && \
+    echo -e ${CL_RED}"`cat $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stderr`"${CL_RST} 1>&2; \
+    rm -f $(PRIVATE_CLASS_INTERMEDIATES_DIR)/srderr; exit 41 ) \
 fi
 $(hide) rm -f $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list
 $(hide) rm -f $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq
@@ -1766,7 +1791,7 @@ endef
 
 #TODO: update the manifest to point to the dex file
 define add-dex-to-package
-$(hide) zip -qj $@ $(dir $(PRIVATE_DEX_FILE))classes*.dex
+$(hide) zip -0qj $@ $(dir $(PRIVATE_DEX_FILE))classes*.dex
 endef
 
 # Add java resources added by the current module.
@@ -1931,19 +1956,19 @@ endef
 
 # Copy a prebuilt file to a target location.
 define transform-prebuilt-to-target
-@echo -e "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_CYN}"$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target)
 endef
 
 # Copy a prebuilt file to a target location, using zipalign on it.
 define transform-prebuilt-to-target-with-zipalign
-@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt APK:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_CYN}"$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt APK:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target-with-zipalign)
 endef
 
 # Copy a prebuilt file to a target location, stripping "# comment" comments.
 define transform-prebuilt-to-target-strip-comments
-@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_CYN}"$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target-strip-comments)
 endef
 
@@ -1977,8 +2002,9 @@ endif
 ###########################################################
 ## Commands to call Proguard
 ###########################################################
+@echo -e ${CL_CYN}"Copying:"${CL_RST}" $@"
+@echo -e ${CL_GRN}"Proguard:"${CL_RST}" $@"
 define transform-jar-to-proguard
-@echo Proguard: $@
 $(hide) $(PROGUARD) -injars $< -outjars $@ $(PRIVATE_PROGUARD_FLAGS) \
     $(addprefix -injars , $(PRIVATE_EXTRA_INPUT_JAR))
 endef

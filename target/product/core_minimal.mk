@@ -23,6 +23,7 @@ PRODUCT_DEVICE := generic
 PRODUCT_NAME := core
 
 PRODUCT_PACKAGES += \
+    aapt \
     BackupRestoreConfirmation \
     DownloadProvider \
     HTMLViewer \
@@ -96,9 +97,16 @@ PRODUCT_BOOT_JARS := \
 
 # The order of PRODUCT_SYSTEM_SERVER_JARS matters.
 PRODUCT_SYSTEM_SERVER_JARS := \
+    org.cyanogenmod.platform \
+    org.cyanogenmod.hardware \
     services \
     ethernet-service \
     wifi-service
+
+# Use Google's Webview (Prebuilt).
+PRODUCT_PACKAGES += \
+    libwebviewchromium_plat_support \
+    libwebviewchromium_loader
 
 PRODUCT_RUNTIMES := runtime_libart_default
 

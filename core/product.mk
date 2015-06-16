@@ -72,6 +72,7 @@ _product_var_list := \
     PRODUCT_LOCALES \
     PRODUCT_AAPT_CONFIG \
     PRODUCT_AAPT_PREF_CONFIG \
+    PRODUCT_AAPT_PREBUILT_DPI \
     PRODUCT_PACKAGES \
     PRODUCT_PACKAGES_DEBUG \
     PRODUCT_PACKAGES_ENG \
@@ -103,14 +104,18 @@ _product_var_list := \
     PRODUCT_FACTORY_BUNDLE_MODULES \
     PRODUCT_RUNTIMES \
     PRODUCT_BOOT_JARS \
-    PRODUCT_DEX_PREOPT_IMAGE_IN_DATA \
     PRODUCT_SUPPORTS_VERITY \
     PRODUCT_OEM_PROPERTIES \
     PRODUCT_SYSTEM_PROPERTY_BLACKLIST \
     PRODUCT_SYSTEM_SERVER_JARS \
     PRODUCT_VERITY_SIGNING_KEY \
     PRODUCT_SYSTEM_VERITY_PARTITION \
-    PRODUCT_VENDOR_VERITY_PARTITION
+    PRODUCT_VENDOR_VERITY_PARTITION \
+    PRODUCT_DEX_PREOPT_IMAGE_IN_DATA \
+    PRODUCT_DEX_PREOPT_MODULE_CONFIGS \
+    PRODUCT_DEX_PREOPT_DEFAULT_FLAGS \
+    PRODUCT_DEX_PREOPT_BOOT_FLAGS \
+
 
 define dump-product
 $(info ==== $(1) ====)\
@@ -124,16 +129,31 @@ $(foreach p,$(PRODUCTS),$(call dump-product,$(p)))
 endef
 
 #
-# $(1): product to inherit
+# Internal function. Appends inherited product variables to an existing one.
 #
-# Does three things:
-#  1. Inherits all of the variables from $1.
-#  2. Records the inheritance in the .INHERITS_FROM variable
-#  3. Records that we've visited this node, in ALL_PRODUCTS
+# $(1): Product variable to operate on
+# $(2): Value to append
 #
-define inherit-product
-  $(foreach v,$(_product_var_list), \
-      $(eval $(v) := $($(v)) $(INHERIT_TAG)$(strip $(1)))) \
+define inherit-product_append-var
+  $(eval $(1) := $($(1)) $(INHERIT_TAG)$(strip $(2)))
+endef
+
+#
+# Internal function. Prepends inherited product variables to an existing one.
+#
+# $(1): Product variable to operate on
+# $(2): Value to prepend
+#
+define inherit-product_prepend-var
+  $(eval $(1) := $(INHERIT_TAG)$(strip $(2)) $($(1)))
+endef
+
+#
+# Internal function. Tracks visited notes during inheritance resolution.
+#
+# $(1): Product being inherited
+#
+define inherit-product_track-node
   $(eval inherit_var := \
       PRODUCTS.$(strip $(word 1,$(_include_stack))).INHERITS_FROM) \
   $(eval $(inherit_var) := $(sort $($(inherit_var)) $(strip $(1)))) \
@@ -141,12 +161,46 @@ define inherit-product
   $(eval ALL_PRODUCTS := $(sort $(ALL_PRODUCTS) $(word 1,$(_include_stack))))
 endef
 
+#
+# $(1): product to inherit
+#
+# Does three things:
+#  1. Inherits all of the variables from $1, prioritizing existing settings.
+#  2. Records the inheritance in the .INHERITS_FROM variable
+#  3. Records that we've visited this node, in ALL_PRODUCTS
+#
+define inherit-product
+  $(foreach v,$(_product_var_list), \
+      $(call inherit-product_append-var,$(v),$(1))) \
+  $(call inherit-product_track-node,$(1))
+endef
+
+#
+# $(1): product to inherit
+#
+# Does three things:
+#  1. Inherits all of the variables from $1, prioritizing inherited settings.
+#  2. Records the inheritance in the .INHERITS_FROM variable
+#  3. Records that we've visited this node, in ALL_PRODUCTS
+#
+define prepend-product
+  $(foreach v,$(_product_var_list), \
+      $(call inherit-product_prepend-var,$(v),$(1))) \
+  $(call inherit-product_track-node,$(1))
+endef
 
 #
 # Do inherit-product only if $(1) exists
 #
 define inherit-product-if-exists
   $(if $(wildcard $(1)),$(call inherit-product,$(1)),)
+endef
+
+#
+# Do inherit-product-prepend only if $(1) exists
+#
+define prepend-product-if-exists
+  $(if $(wildcard $(1)),$(call prepend-product,$(1)),)
 endef
 
 #
@@ -301,4 +355,15 @@ endef
 
 define add-to-product-copy-files-if-exists
 $(if $(wildcard $(word 1,$(subst :, ,$(1)))),$(1))
+endef
+
+# whitespace placeholder when we record module's dex-preopt config.
+_PDPMC_SP_PLACE_HOLDER := |@SP@|
+# Set up dex-preopt config for a module.
+# $(1) list of module names
+# $(2) the modules' dex-preopt config
+define add-product-dex-preopt-module-config
+$(eval _c := $(subst $(space),$(_PDPMC_SP_PLACE_HOLDER),$(strip $(2))))\
+$(eval PRODUCT_DEX_PREOPT_MODULE_CONFIGS += \
+  $(foreach m,$(1),$(m)=$(_c)))
 endef

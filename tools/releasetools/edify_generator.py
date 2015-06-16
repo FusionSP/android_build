@@ -125,10 +125,13 @@ class EdifyGenerator(object):
     self.script.append(cmd)
 
   def AssertSomeBootloader(self, *bootloaders):
-    """Asert that the bootloader version is one of *bootloaders."""
+    """Assert that the bootloader version is one of *bootloaders."""
     cmd = ("assert(" +
            " || ".join(['getprop("ro.bootloader") == "%s"' % (b,)
                          for b in bootloaders]) +
+           ' || abort("This package supports bootloader(s): ' +
+           ", ".join(["%s" % (b,) for b in bootloaders]) +
+           '; this device has bootloader " + getprop("ro.bootloader") + ".");' +
            ");")
     self.script.append(self._WordWrap(cmd))
 
@@ -137,33 +140,23 @@ class EdifyGenerator(object):
     cmd = ("assert(" +
            " || ".join(['getprop("ro.baseband") == "%s"' % (b,)
                          for b in basebands]) +
+           ' || abort("This package supports baseband(s): ' +
+           ", ".join(["%s" % (b,) for b in basebands]) +
+           '; this device has baseband " + getprop("ro.baseband") + ".");' +
            ");")
     self.script.append(self._WordWrap(cmd))
 
   def RunBackup(self, command):
-    self.script.append('package_extract_file("system/bin/backuptool.sh", "/tmp/backuptool.sh");')
-    self.script.append('package_extract_file("system/bin/backuptool.functions", "/tmp/backuptool.functions");')
-    if not self.info.get("use_set_metadata", False):
-      self.script.append('set_perm(0, 0, 0755, "/tmp/backuptool.sh");')
-      self.script.append('set_perm(0, 0, 0644, "/tmp/backuptool.functions");')
-    else:
-      self.script.append('set_metadata("/tmp/backuptool.sh", "uid", 0, "gid", 0, "mode", 0755);')
-      self.script.append('set_metadata("/tmp/backuptool.functions", "uid", 0, "gid", 0, "mode", 0644);')
-    self.script.append(('run_program("/tmp/backuptool.sh", "%s");' % command))
-    if command == "restore":
-        self.script.append('delete("/system/bin/backuptool.sh");')
-        self.script.append('delete("/system/bin/backuptool.functions");')
+    self.script.append(('run_program("/tmp/install/bin/backuptool.sh", "%s");' % command))
 
   def ValidateSignatures(self, command):
-    if command == "cleanup":
-        self.script.append('delete("/system/bin/otasigcheck.sh");')
-    else:
-        self.script.append('package_extract_file("system/bin/otasigcheck.sh", "/tmp/otasigcheck.sh");')
-        self.script.append('package_extract_file("META-INF/org/cyanogenmod/releasekey", "/tmp/releasekey");')
-        self.script.append('set_metadata("/tmp/otasigcheck.sh", "uid", 0, "gid", 0, "mode", 0755);')
-        self.script.append('run_program("/tmp/otasigcheck.sh");')
-        ## Hax: a failure from run_program doesn't trigger an abort, so have it change the key value and check for "INVALID"
-        self.script.append('sha1_check(read_file("/tmp/releasekey"),"7241e92725436afc79389d4fc2333a2aa8c20230") && abort("Can\'t install this package on top of incompatible data. Please try another package or run a factory reset");')
+    # Exit code 124 == abort. run_program returns raw, so left-shift 8bit
+    self.script.append('run_program("/tmp/install/bin/otasigcheck.sh") != "31744" || abort("Can\'t install this package on top of incompatible data. Please try another package or run a factory reset");')
+
+  def FlashSuperSU(self):
+    self.script.append('package_extract_dir("supersu", "/tmp/supersu");')
+    self.script.append('run_program("/sbin/busybox", "unzip", "/tmp/supersu/supersu.zip", "META-INF/com/google/android/*", "-d", "/tmp/supersu");')
+    self.script.append('run_program("/sbin/busybox", "sh", "/tmp/supersu/META-INF/com/google/android/update-binary", "dummy", "1", "/tmp/supersu/supersu.zip");')
 
   def ShowProgress(self, frac, dur):
     """Update the progress bar, advancing it over 'frac' over the next
@@ -200,31 +193,8 @@ class EdifyGenerator(object):
                         'on /system to apply patches.");') % (amount,))
 
   def Mount(self, mount_point, mount_options_by_format=""):
-    """Mount the partition with the given mount_point.
-      mount_options_by_format:
-      [fs_type=option[,option]...[|fs_type=option[,option]...]...]
-      where option is optname[=optvalue]
-      E.g. ext4=barrier=1,nodelalloc,errors=panic|f2fs=errors=recover
-    """
-    fstab = self.info.get("fstab", None)
-    if fstab:
-      p = fstab[mount_point]
-      mount_dict = {}
-      if mount_options_by_format is not None:
-        for option in mount_options_by_format.split("|"):
-          if "=" in option:
-            key, value = option.split("=", 1)
-            mount_dict[key] = value
-      self.script.append('mount("%s", "%s", "%s", "%s", "%s");' %
-                         (p.fs_type, common.PARTITION_TYPES[p.fs_type],
-                          p.device, p.mount_point, mount_dict.get(p.fs_type, "")))
-      self.mounts.add(p.mount_point)
-
-  def Unmount(self, mount_point):
-    """Unmount the partiiton with the given mount_point."""
-    if mount_point in self.mounts:
-      self.mounts.remove(mount_point)
-      self.script.append('unmount("%s");' % (mount_point,))
+    """Mount the partition with the given mount_point."""
+    self.script.append('run_program("/sbin/busybox", "mount", "/system");')
 
   def UnpackPackageDir(self, src, dst):
     """Unpack a given directory from the OTA package into the given
@@ -242,17 +212,21 @@ class EdifyGenerator(object):
     """Log a message to the screen (if the logs are visible)."""
     self.script.append('ui_print("%s");' % (message,))
 
-  def FormatPartition(self, partition):
-    """Format the given partition, specified by its mount point (eg,
-    "/system")."""
-
-    reserve_size = 0
+  def TunePartition(self, partition, *options):
     fstab = self.info.get("fstab", None)
     if fstab:
       p = fstab[partition]
-      self.script.append('format("%s", "%s", "%s", "%s", "%s");' %
-                         (p.fs_type, common.PARTITION_TYPES[p.fs_type],
-                          p.device, p.length, p.mount_point))
+      if (p.fs_type not in ( "ext2", "ext3", "ext4")):
+        raise ValueError("Partition %s cannot be tuned\n" % (partition,))
+    self.script.append('tune2fs(' +
+                       "".join(['"%s", ' % (i,) for i in options]) +
+                       '"%s") || abort("Failed to tune partition %s");'
+                       % ( p.device,partition));
+
+  def FormatPartition(self, partition):
+    self.script.append('package_extract_file("system/bin/format-system.sh", "/tmp/format-system.sh");')
+    self.script.append('set_metadata("/tmp/format-system.sh", "uid", 0, "gid", 0, "mode", 0755);')
+    self.script.append('run_program("/tmp/format-system.sh");')
 
   def WipeBlockDevice(self, partition):
     if partition not in ("/system", "/vendor"):
@@ -326,9 +300,10 @@ class EdifyGenerator(object):
     if not self.info.get("use_set_metadata", False):
       self.script.append('set_perm(%d, %d, 0%o, "%s");' % (uid, gid, mode, fn))
     else:
-      if capabilities is None: capabilities = "0x0"
-      cmd = 'set_metadata("%s", "uid", %d, "gid", %d, "mode", 0%o, ' \
-          '"capabilities", %s' % (fn, uid, gid, mode, capabilities)
+      cmd = 'set_metadata("%s", "uid", %d, "gid", %d, "mode", 0%o' \
+          % (fn, uid, gid, mode)
+      if capabilities is not None:
+        cmd += ', "capabilities", %s' % ( capabilities )
       if selabel is not None:
         cmd += ', "selabel", "%s"' % ( selabel )
       cmd += ');'
@@ -340,10 +315,11 @@ class EdifyGenerator(object):
       self.script.append('set_perm_recursive(%d, %d, 0%o, 0%o, "%s");'
                          % (uid, gid, dmode, fmode, fn))
     else:
-      if capabilities is None: capabilities = "0x0"
       cmd = 'set_metadata_recursive("%s", "uid", %d, "gid", %d, ' \
-          '"dmode", 0%o, "fmode", 0%o, "capabilities", %s' \
-          % (fn, uid, gid, dmode, fmode, capabilities)
+          '"dmode", 0%o, "fmode", 0%o' \
+          % (fn, uid, gid, dmode, fmode)
+      if capabilities is not None:
+        cmd += ', "capabilities", "%s"' % ( capabilities )
       if selabel is not None:
         cmd += ', "selabel", "%s"' % ( selabel )
       cmd += ');'
@@ -365,8 +341,9 @@ class EdifyGenerator(object):
     self.script.append(extra)
 
   def Unmount(self, mount_point):
-    self.script.append('unmount("%s");' % (mount_point,))
-    self.mounts.remove(mount_point);
+    """Unmount the partiiton with the given mount_point."""
+    self.script.append('unmount("/system");')
+
 
   def UnmountAll(self):
     for p in sorted(self.mounts):
